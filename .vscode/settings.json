@@ -1,0 +1,8 @@
+{
+  "php.validate.executablePath": "/usr/local/bin/php",
+  "phpunit.phpunitExecutablePath": "/usr/local/bin/phpunit",
+  "phpunit.args": [
+    "--configuration=/var/www/html/phpunit.xml"
+  ],
+  "phpunit.debug": true
+}
