@@ -1,4 +1,11 @@
-# 1a Pulling the image from DockerHub ✅️
+🔧 PHP 8.3 + Xdebug 3.4 + PHPUnit 12 – Ready-to-Use Development Environment
+
+This repository provides a complete Docker-based environment for PHP development, debugging, and automated testing.
+It includes PHP 8.3, Xdebug 3.4, PHPUnit 12, and Composer 2.9, all preconfigured and ready to run out of the box.
+
+Step by step guide:
+
+# 1a Pull the image from DockerHub ✅️
 docker pull davidebiondi/php8_3_xdebug_phpunit:latest
 
 # 1b Or clone this repo itself and build the image ✅️
