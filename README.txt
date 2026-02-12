@@ -5,7 +5,7 @@ It includes PHP 8.3, Xdebug 3.4, PHPUnit 12, and Composer 2.9, all preconfigured
 
 Step by step guide:
 
-# 1a Pull the image from DockerHub ✅️
+# 1a Pull the image from DockerHub (you will still need the docker-compose.yml file to configure Apache 2.4) ✅️
 docker pull davidebiondi/php8_3_xdebug_phpunit:latest
 
 # 1b Or clone this repo itself and build the image ✅️
