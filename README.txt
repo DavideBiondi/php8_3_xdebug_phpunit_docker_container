@@ -124,6 +124,17 @@ Un-comment the lines:
 sed -E 's/#(.*mod_proxy\.so)/\1/;s/#(.*mod_proxy_fcgi\.so)/\1/' httpd.conf > httpd.conf.test
 diff httpd.conf httpd.conf.test
 
+Expected output:
+142c142
+< #LoadModule proxy_module modules/mod_proxy.so
+---
+> LoadModule proxy_module modules/mod_proxy.so
+146c146
+< #LoadModule proxy_fcgi_module modules/mod_proxy_fcgi.so
+---
+> LoadModule proxy_fcgi_module modules/mod_proxy_fcgi.so
+
+
 sed -E -i 's/#(.*mod_proxy\.so)/\1/;s/#(.*mod_proxy_fcgi\.so)/\1/' httpd.conf
 
 Validation test (no output expected):
