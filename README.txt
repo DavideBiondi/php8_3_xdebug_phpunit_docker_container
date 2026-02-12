@@ -16,7 +16,6 @@ docker compose up -d
 
 # 2a Create settings.json file ✅️
 mkdir -p ~/php8_3_xdebug_phpunit_docker_container/.vscode
-cd ~/php8.3-docker
 cat ./.vscode/settings.json << 'JSON'
 {
   "php.validate.executablePath": "/usr/local/bin/php",
