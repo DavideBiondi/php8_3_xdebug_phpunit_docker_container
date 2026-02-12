@@ -11,6 +11,17 @@ services:
     networks:
       - my_xdebug_net
 
+  apache:
+    image: httpd:2.4
+    container_name: apache_php8
+    ports:
+      - "8081:80"
+    volumes:
+      - ${PROJECT_PATH}:/var/www/html
+      - ./httpd.conf:/usr/local/apache2/conf/httpd.conf
+    networks:
+      - my_xdebug_net
+
   mysql:
     image: mysql:8.0
     container_name: mysql

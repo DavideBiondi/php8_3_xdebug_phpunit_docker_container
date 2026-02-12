@@ -41,6 +41,17 @@ services:
     networks:
       - my_xdebug_net
 
+  apache:
+    image: httpd:2.4
+    container_name: apache_php8
+    ports:
+      - "8081:80"
+    volumes:
+      - ${PROJECT_PATH}:/var/www/html
+      - ./httpd.conf:/usr/local/apache2/conf/httpd.conf
+    networks:
+      - my_xdebug_net
+
   mysql:
     image: mysql:8.0
     container_name: mysql
@@ -99,10 +110,105 @@ MYSQL_PORT=?
 PHPMYADMIN_PORT=?
 ENV
 
-# 4 Compose the container ✅️
+# 4 Configure Apache
+🔧 4.1 Generate Default Apache Configuration
 cd ~/php8_3_xdebug_phpunit_docker_container
-export PROJECT_PATH=/path/to/your/PHP_Project
-docker compose up -d
+docker run --rm httpd:2.4 cat /usr/local/apache2/conf/httpd.conf > httpd.conf
+
+🧪 4.2 Apache Configuration Tests
+sed '/proxy_fcgi_module/d' httpd.conf > httpd.conf.test
+
+✅ Test 1 – Ensure mod_proxy loads BEFORE mod_proxy_fcgi
+
+Un-comment the lines:
+sed -E 's/#(.*mod_proxy\.so)/\1/;s/#(.*mod_proxy_fcgi\.so)/\1/' httpd.conf > httpd.conf.test
+diff httpd.conf httpd.conf.test
+
+sed -E -i 's/#(.*mod_proxy\.so)/\1/;s/#(.*mod_proxy_fcgi\.so)/\1/' httpd.conf
+
+Validation test (no output expected):
+diff httpd.conf httpd.conf.test
+
+✅ Test 2 – Add PHP-FPM Handler
+
+sed -i '/Listen 80/ a <FilesMatch \\.php$>\n    SetHandler \"proxy:fcgi:\/\/php8.3:9000\"\n<\/FilesMatch>' httpd.conf.test
+Append a newline after a pattern:
+sed -i '/Listen 80/{G;}' httpd.conf.test
+diff httpd.conf httpd.conf.test
+
+Expected output:
+53a54,57
+> <FilesMatch \.php$>
+>     SetHandler "proxy:fcgi://php8.3:9000"
+> </FilesMatch>
+> 
+
+sed -i '/Listen 80/ a <FilesMatch \\.php$>\n    SetHandler \"proxy:fcgi:\/\/php8.3:9000\"\n<\/FilesMatch>' httpd.conf
+sed -i '/Listen 80/{G;}' httpd.conf
+
+Validation (no output expected):
+diff httpd.conf httpd.conf.test
+
+✅ Test 3 – Ensure DirectoryIndex includes index.php
+
+sed -i -E 's/(DirectoryIndex) (index.html)/\1 index.php \2/' httpd.conf.test
+diff httpd.conf httpd.conf.test
+
+Expected output:
+304c304
+<     DirectoryIndex index.html
+---
+>     DirectoryIndex index.php index.html
+
+sed -i -E 's/(DirectoryIndex) (index.html)/\1 index.php \2/' httpd.conf
+
+Validation (no output expected):
+diff httpd.conf httpd.conf.test
+
+✅️ Test 4 – Change DocumentRoot
+
+sed -E 's/(DocumentRoot) \"\/usr\/local\/apache2\/htdocs\"/\1 \"\/var\/www\/html\/public\"/' httpd.conf > httpd.conf.test
+diff httpd.conf httpd.conf.test
+
+Expected output:
+265c265
+< DocumentRoot "/usr/local/apache2/htdocs"
+---
+> DocumentRoot "/var/www/html/public"
+
+sed -E -i 's/(DocumentRoot) \"\/usr\/local\/apache2\/htdocs\"/\1 \"\/var\/www\/html\/public\"/' httpd.conf
+
+Validation (no output expected):
+diff httpd.conf httpd.conf.test
+
+sed -E 's/(<Directory) \"\/usr\/local\/apache2\/htdocs\">/\1 \"\/var\/www\/html\/public\">/' httpd.conf > httpd.conf.test
+diff httpd.conf httpd.conf.test
+
+Expected output:
+266c266
+< <Directory "/usr/local/apache2/htdocs">
+---
+> <Directory "/var/www/html/public">
+
+sed -E -i 's/(<Directory) \"\/usr\/local\/apache2\/htdocs\">/\1 \"\/var\/www\/html\/public\">/' httpd.conf
+
+Validation (no output expected):
+diff httpd.conf httpd.conf.test
+
+Set "AllowOverride" parameter with value "All":
+sed -E '/<Directory "\/var\/www\/html\/public">/,/<\/Directory>/ s/#?\s*(AllowOverride) None/    \1 All/' httpd.conf > httpd.conf.test
+diff httpd.conf httpd.conf.test
+
+Expected output:
+286c286
+<     AllowOverride None
+---
+>     AllowOverride All
+
+sed -E -i '/<Directory "\/var\/www\/html\/public">/,/<\/Directory>/ s/#?\s*(AllowOverride) None/    \1 All/' httpd.conf
+
+Validation (no output expected):
+diff httpd.conf httpd.conf.test
 
 # 5 Build a custom bridge network ✅️
 docker network create \
@@ -115,10 +221,15 @@ docker network create \
   --opt com.docker.network.driver.mtu=1500 \
   my_xdebug_net
 
-# 6 Configure the xdebug configuration file ✅️
+# 6 Compose the container ✅️
+cd ~/php8_3_xdebug_phpunit_docker_container
+export PROJECT_PATH=/path/to/your/PHP_Project
+docker compose up -d
+
+# 7 Configure the xdebug configuration file ✅️
 docker exec -it php8.3 bash
 
-# 6.1 Inside the container ✅️
+# 7.1 Inside the container ✅️
 cat > /usr/local/etc/php/conf.d/20-xdebug.ini << 'XDBG'
 zend_extension=xdebug.so
 xdebug.mode=debug
@@ -133,12 +244,12 @@ mv /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini /usr/local/etc/php/conf.d
 
 exit
 
-# 7 Configure UFW (firewall) ✅️
+# 8 Configure UFW (firewall) ✅️
 sudo ufw allow from 172.25.0.0/16 to any port 9003 proto tcp
 sudo ufw allow in on br-xdebug
 sudo ufw restart
 
-# 8 Configure the launch.json file in your php project ✅️
+# 9 Configure the launch.json file in your php project ✅️
 # (xdebug extension is buggy so place all the php files in the root directory until they solve the issue)
 cat > /path/to/your/PHP_Project/.vscode/launch.json << 'JSON'
 {
@@ -156,3 +267,54 @@ cat > /path/to/your/PHP_Project/.vscode/launch.json << 'JSON'
   ]
 }
 JSON
+
+# 10 🧪 Runtime Verification Tests
+
+✅️ Test 1 - Check container is running
+docker ps | grep apache
+
+Expected output:
+alpha_num_code   httpd:2.4               "httpd-name"       34 seconds ago   Up 34 seconds
+
+✅️ Test 2 - Check Apache logs
+docker logs apache_php8
+
+Expected output:
+Apache/2.4.66 (Unix) configured -- resuming normal operations
+
+✅️ Test 3 - Check Port Binding via Host
+ss -lntp | grep 8081
+
+Expected output:
+LISTEN 0.0.0.0:8081
+
+netstat -lntp | grep 8081
+
+Expected output:
+tcp        0      0 0.0.0.0:8081            0.0.0.0:*               LISTEN      -                   
+
+✅️ Test 4 - Check Apache is listening
+
+docker exec apache_php8 apachectl -S
+
+Expected output:
+Main DocumentRoot: "/var/www/html/public"
+
+docker exec -it apache_php8 apachectl -t
+
+Expected output:
+Syntax OK
+
+✅️ Test 5 - Check index.php existence
+
+docker exec apache_php8 ls /var/www/html/index.php
+
+Expected output:
+/var/www/html/index.php
+
+✅️ Test 6 - Test via curl
+
+curl http://localhost:8081/index.php
+
+Expected output:
+HTML output (PHP executed, not downloaded)
