@@ -6,13 +6,14 @@ RUN apt-get update && apt-get install -y \
     zip \
     unzip \
     sqlite3 \
+    libsqlite3-dev \
     libzip-dev \
     libpng-dev \
     libjpeg-dev \
     libfreetype6-dev \
     libonig-dev \
     libxml2-dev \
-    libcurl4-openssl-dev
+    libcurl4-openssl-dev \
    && docker-php-ext-configure gd --with-freetype --with-jpeg \
    && docker-php-ext-install \
         pdo \
@@ -24,8 +25,8 @@ RUN apt-get update && apt-get install -y \
         pcntl \
         bcmath \
         gd \
-zip \
-opcache
+        zip \
+        opcache
 
 # Installa apcu
 RUN pecl install apcu && docker-php-ext-enable apcu
