@@ -109,13 +109,17 @@ MYSQL_PORT=?
 PHPMYADMIN_PORT=?
 ENV
 
-# 4 Configure Apache
-🔧 4.1 Generate Default Apache Configuration
+# 5 Compose the container ✅️
+cd ~/php8_3_xdebug_phpunit_docker_container
+export PROJECT_PATH=/path/to/your/PHP_Project
+docker compose up -d
+
+# 6 Configure Apache
+🔧 6.1 Generate Default Apache Configuration
 cd ~/php8_3_xdebug_phpunit_docker_container
 docker run --rm httpd:2.4 cat /usr/local/apache2/conf/httpd.conf > httpd.conf
 
-🧪 4.2 Apache Configuration Tests
-sed '/proxy_fcgi_module/d' httpd.conf > httpd.conf.test
+🧪 6.2 Apache Configuration Tests
 
 ✅ Test 1 – Ensure mod_proxy loads BEFORE mod_proxy_fcgi
 
@@ -139,43 +143,7 @@ sed -E -i 's/#(.*mod_proxy\.so)/\1/;s/#(.*mod_proxy_fcgi\.so)/\1/' httpd.conf
 Validation test (no output expected):
 diff httpd.conf httpd.conf.test
 
-✅ Test 2 – Add PHP-FPM Handler
-
-sed -i '/Listen 80/ a <FilesMatch \\.php$>\n    SetHandler \"proxy:fcgi:\/\/php8.3:9000\"\n<\/FilesMatch>' httpd.conf.test
-Append a newline after a pattern:
-sed -i '/Listen 80/{G;}' httpd.conf.test
-diff httpd.conf httpd.conf.test
-
-Expected output:
-53a54,57
-> <FilesMatch \.php$>
->     SetHandler "proxy:fcgi://php8.3:9000"
-> </FilesMatch>
-> 
-
-sed -i '/Listen 80/ a <FilesMatch \\.php$>\n    SetHandler \"proxy:fcgi:\/\/php8.3:9000\"\n<\/FilesMatch>' httpd.conf
-sed -i '/Listen 80/{G;}' httpd.conf
-
-Validation (no output expected):
-diff httpd.conf httpd.conf.test
-
-✅ Test 3 – Ensure DirectoryIndex includes index.php
-
-sed -i -E 's/(DirectoryIndex) (index.html)/\1 index.php \2/' httpd.conf.test
-diff httpd.conf httpd.conf.test
-
-Expected output:
-304c304
-<     DirectoryIndex index.html
----
->     DirectoryIndex index.php index.html
-
-sed -i -E 's/(DirectoryIndex) (index.html)/\1 index.php \2/' httpd.conf
-
-Validation (no output expected):
-diff httpd.conf httpd.conf.test
-
-✅️ Test 4 – Change DocumentRoot
+✅️ Test 2 – Change DocumentRoot
 
 sed -E 's/(DocumentRoot) \"\/usr\/local\/apache2\/htdocs\"/\1 \"\/var\/www\/html\/public\"/' httpd.conf > httpd.conf.test
 diff httpd.conf httpd.conf.test
@@ -220,7 +188,82 @@ sed -E -i '/<Directory "\/var\/www\/html\/public">/,/<\/Directory>/ s/#?\s*(Allo
 Validation (no output expected):
 diff httpd.conf httpd.conf.test
 
-# 5 Build a custom bridge network ✅️
+✅ Test 3 – Add PHP-FPM Handler
+
+sed -i '/Listen 80/ a <FilesMatch \\.php$>\n    SetHandler \"proxy:fcgi:\/\/php8.3:9000\"\n<\/FilesMatch>' httpd.conf.test
+Append a newline after a pattern:
+sed -i '/Listen 80/{G;}' httpd.conf.test
+diff httpd.conf httpd.conf.test
+
+Expected output:
+53a54,57
+> <FilesMatch \.php$>
+>     SetHandler "proxy:fcgi://php8.3:9000"
+> </FilesMatch>
+> 
+
+sed -i '/Listen 80/ a <FilesMatch \\.php$>\n    SetHandler \"proxy:fcgi:\/\/php8.3:9000\"\n<\/FilesMatch>' httpd.conf
+sed -i '/Listen 80/{G;}' httpd.conf
+
+Validation (no output expected):
+diff httpd.conf httpd.conf.test
+
+✅ Test 4 – Ensure DirectoryIndex includes index.php and index.htm
+
+sed -i -E 's/(DirectoryIndex) (index.html)/\1 index.php index.htm \2/' httpd.conf.test
+diff httpd.conf httpd.conf.test
+
+Expected output:
+303c303
+<     DirectoryIndex index.html
+---
+>     DirectoryIndex index.php index.htm index.html
+
+sed -i -E 's/(DirectoryIndex) (index.html)/\1 index.php index.htm \2/' httpd.conf
+
+Validation (no output expected):
+diff httpd.conf httpd.conf.test
+
+✅ Test 5 – Load mod_expires module
+
+sed -E 's/#(.*mod_expires\.so)/\1/' httpd.conf > httpd.conf.test
+diff httpd.conf httpd.conf.test
+
+Expected output:
+138c138
+< #LoadModule expires_module modules/mod_expires.so
+---
+> LoadModule expires_module modules/mod_expires.so
+
+sed -E -i 's/#(.*mod_expires\.so)/\1/' httpd.conf
+
+Validation (no output expected):
+diff httpd.conf httpd.conf.test
+
+✅ Test 6 – Load mod_rewrite module
+
+sed -E 's/#(.*mod_rewrite\.so)/\1/' httpd.conf > httpd.conf.test
+diff httpd.conf httpd.conf.test
+
+Expected output:
+203c203
+< #LoadModule rewrite_module modules/mod_rewrite.so
+---
+> LoadModule rewrite_module modules/mod_rewrite.so
+
+sed -E -i 's/#(.*mod_rewrite\.so)/\1/' httpd.conf
+
+Validation (no output expected):
+diff httpd.conf httpd.conf.test
+
+# 7 Restart the apache server
+
+docker restart apache_php8
+
+Expected output:
+apache_php8
+
+# 8 Build a custom bridge network ✅️
 docker network create \
   --driver=bridge \
   --subnet=172.25.0.0/16 \
@@ -231,15 +274,11 @@ docker network create \
   --opt com.docker.network.driver.mtu=1500 \
   my_xdebug_net
 
-# 6 Compose the container ✅️
-cd ~/php8_3_xdebug_phpunit_docker_container
-export PROJECT_PATH=/path/to/your/PHP_Project
-docker compose up -d
 
-# 7 Configure the xdebug configuration file ✅️
+# 9 Configure the xdebug configuration file ✅️
 docker exec -it php8.3 bash
 
-# 7.1 Inside the container ✅️
+# 9.1 Inside the container ✅️
 cat > /usr/local/etc/php/conf.d/20-xdebug.ini << 'XDBG'
 zend_extension=xdebug.so
 xdebug.mode=debug
@@ -254,12 +293,12 @@ mv /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini /usr/local/etc/php/conf.d
 
 exit
 
-# 8 Configure UFW (firewall) ✅️
+# 10 Configure UFW (firewall) ✅️
 sudo ufw allow from 172.25.0.0/16 to any port 9003 proto tcp
 sudo ufw allow in on br-xdebug
 sudo ufw restart
 
-# 9 Configure the launch.json file in your php project ✅️
+# 11 Configure the launch.json file in your php project ✅️
 # (xdebug extension is buggy so place all the php files in the root directory until they solve the issue)
 cat > /path/to/your/PHP_Project/.vscode/launch.json << 'JSON'
 {
@@ -278,7 +317,7 @@ cat > /path/to/your/PHP_Project/.vscode/launch.json << 'JSON'
 }
 JSON
 
-# 10 🧪 Runtime Verification Tests
+# 12 🧪 Runtime Verification Tests
 
 ✅️ Test 1 - Check container is running
 docker ps | grep apache
