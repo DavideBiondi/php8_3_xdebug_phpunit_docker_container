@@ -296,9 +296,61 @@ exit
 # 10 Configure UFW (firewall) ✅️
 sudo ufw allow from 172.25.0.0/16 to any port 9003 proto tcp
 sudo ufw allow in on br-xdebug
+#Insert new rules manually, creating a "nat" section before *filter and a "ufw-before-forward" after *filter:
+sudo nano /etc/ufw/before.rules
+sudo grep -A 20 '\"nat\"' /etc/ufw/before.rules 
+
+Expected output:
+# Sezione "nat" (created manually on 20/02/2026) posizionata subito prima della sezione *filter 
+*nat
+:POSTROUTING ACCEPT [0:0]
+
+-A POSTROUTING -s 172.25.0.0/16 ! -o br-xdebug -j MASQUERADE
+
+COMMIT
+
+# Don't delete these required lines, otherwise there will be errors
+*filter :ufw-before-input - [0:0]
+:ufw-before-output - [0:0]
+:ufw-before-forward - [0:0]
+:ufw-not-local - [0:0]
+
+# Regole Docker (posizionate subito dopo l'inizio della sezione *filter, added manually on 01/12/2025)
+
+-A ufw-before-forward -i docker0 -j ACCEPT
+-A ufw-before-forward -o docker0 -j ACCEPT
+
+# End required lines
 sudo ufw restart
 
-# 11 Configure the launch.json file in your php project ✅️
+# 11 🧪 Firewall and connection tests
+
+✅️ Test 1 - MASQUERADE rules visibility
+
+sudo iptables -t nat -L POSTROUTING -n -v
+
+Expected output:
+Chain POSTROUTING (policy ACCEPT 5507 packets, 770K bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 MASQUERADE  all  --  *      !docker0  172.17.0.0/16        0.0.0.0/0           
+    0     0 MASQUERADE  all  --  *      !br-xdebug  172.25.0.0/16        0.0.0.0/0
+
+✅️ Test 2 - Check container is connecting to the internet
+
+docker restart php8.3
+
+Expected output:
+php8.3
+
+#Enter the container:
+docker exec -it php8.3 bash
+
+curl -I https://repo.packagist.org/packages.json
+
+Expected output (a 200 type of response):
+HTTP/2 200
+
+# 12 Configure the launch.json file in your php project ✅️
 # (xdebug extension is buggy so place all the php files in the root directory until they solve the issue)
 cat > /path/to/your/PHP_Project/.vscode/launch.json << 'JSON'
 {
@@ -317,7 +369,7 @@ cat > /path/to/your/PHP_Project/.vscode/launch.json << 'JSON'
 }
 JSON
 
-# 12 🧪 Runtime Verification Tests
+# 13 🧪 Runtime Verification Tests
 
 ✅️ Test 1 - Check container is running
 docker ps | grep apache
